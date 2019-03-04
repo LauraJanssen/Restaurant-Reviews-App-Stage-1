@@ -33,11 +33,22 @@ self.addEventListener('install', function(event) {
 self.addEventListener('fetch', function(event) {
   event.respondWith(
 	caches.match(event.request)
-	.then(function(response) {
-	  return response ? response : fetch(event.request);
+	.then(function(cachedResponse) {
+		if (cachedResponse) {
+			return cachedResponse;
+		}
+	  return fetch(event.request).then(realResponse => {
+			if (realResponse.status === 404) {
+				return;
+			}
+			return caches.open(currentCacheName).then(cache => {
+				cache.put(event.request.url, realResponse.clone());
+				return realResponse;
+			})
+	  })
 	})
-  );
-});
+	);
+})
 
 // If a new service worker is activated, delete old cache
 self.addEventListener('activate', function(event) {
